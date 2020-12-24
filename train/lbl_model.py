@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 import numpy as np
-from tqdm import tqdm_notebook
+from tqdm import tqdm
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
@@ -20,7 +20,6 @@ device = 0 if use_cuda else -1
 TEXT = torchtext.data.Field()
 train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data", train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
 TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
-TEXT.vocab.load_vectors('glove.840B.300d')
 train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test), batch_size=100, bptt_len=32, repeat=False)
 
 
@@ -28,11 +27,16 @@ train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val
 
 
 class LBLModel(nn.Module):
-    def __init__(self, TEXT = TEXT, batch_size = 10, n_gram=30):
+    def __init__(self,
+                 TEXT = TEXT,
+                 embedding_dim = 100,
+                 batch_size = 10,
+                 n_gram=30):
         super(LBLModel, self).__init__()
         self.batch_size = batch_size
         self.n_gram = n_gram
-        self.vocab_size, self.embedding_dim = TEXT.vocab.vectors.shape
+        self.vocab_size = len(TEXT.vocab.itos)
+        self.embedding_dim = embedding_dim
         self.embeddings_word = nn.Embedding(self.vocab_size, self.embedding_dim)
         self.embedding_bias = nn.Embedding(self.vocab_size, 1)
         self.embedding_bias.weight.data = torch.zeros(self.vocab_size, 1)
@@ -87,12 +91,12 @@ class Trainer:
         optimizer = torch.optim.Adam(params = parameters, lr=1e-1)
         criterion = nn.NLLLoss()
         
-        for epoch in tqdm_notebook(range(num_epochs)):
+        for epoch in tqdm(range(num_epochs)):
             epoch_loss = []
 #             hidden = model.init_hidden()
             model.train()
             count = 0
-            for batch in tqdm_notebook(train_iter):
+            for batch in tqdm(train_iter):
                 x, y = self.batch_to_input(batch)
                 if use_cuda: x, y = x.cuda(), y.cuda()
                 optimizer.zero_grad()

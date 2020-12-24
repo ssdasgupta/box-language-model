@@ -16,7 +16,6 @@ device = 0 if use_cuda else -1
 TEXT = torchtext.data.Field()
 train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data", train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
 TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
-TEXT.vocab.load_vectors('glove.840B.300d')
 train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test), batch_size=10, bptt_len=5, repeat=False)
 
 
@@ -97,11 +96,16 @@ class BoxModel(nn.Module):
     box_types = {
         'DeltaBoxTensor': DeltaBoxTensor,
     }
-    def __init__(self, TEXT = TEXT, batch_size = 10, n_gram=4):
+    def __init__(self,
+                 TEXT = TEXT,
+                 embedding_dim = 50,
+                 batch_size = 10,
+                 n_gram=4):
         super(BoxModel, self).__init__()
         self.batch_size = batch_size
         self.n_gram = n_gram
-        self.vocab_size, self.embedding_dim = TEXT.vocab.vectors.shape
+        self.vocab_size = len(TEXT.vocab.itos)
+        self.embedding_dim = embedding_dim
         self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim, box_type='DeltaBoxTensor')
         self.embedding_bias = nn.Embedding(self.vocab_size, 1)
         self.embedding_bias.weight.data = torch.zeros(self.vocab_size, 1)
