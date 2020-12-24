@@ -113,11 +113,14 @@ class BoxModel(nn.Module):
     def forward(self, x, train = True):
         """ predict, return hidden state so it can be used to intialize the next hidden state """
         context_word_boxes = self.embeddings_word(x)
-        lm_batch_size = x.shape[0]
+        all_gram_idx = torch.arange(self.n_gram).cuda() if use_cuda else torch.arange(self.n_gram)
+        all_vocab_idx = torch.arange(self.vocab_size).cuda() if use_cuda else torch.arange(self.vocab_size)
+
         context_word_boxes.data = torch.mean(context_word_boxes.data, dim=1).view(-1,1,2,self.embedding_dim)
-        all_word = self.embeddings_word(torch.arange(self.vocab_size))
+        
+        all_word = self.embeddings_word(all_vocab_idx)
         all_word.data = all_word.data.view(1, self.vocab_size, 2,self.embedding_dim)
-#         all_word.data = all_word.data.view(-1,1,2,self.embedding_dim)
+
         dec = all_word.intersection_log_soft_volume(context_word_boxes)
         decoded = dec + self.embedding_bias(torch.arange(self.vocab_size)).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       

@@ -46,10 +46,12 @@ class LBLModel(nn.Module):
     def forward(self, x, train = True):
         """ predict, return hidden state so it can be used to intialize the next hidden state """
         context_word_features = self.embeddings_word(x)
-        position_matrix = self.C(torch.arange(self.n_gram)).reshape(-1, self.embedding_dim, self.embedding_dim)
+        all_gram_idx = torch.arange(self.n_gram).cuda() if use_cuda else torch.arange(self.n_gram)
+        all_vocab_idx = torch.arange(self.vocab_size).cuda() if use_cuda else torch.arange(self.vocab_size)
+        position_matrix = self.C(all_gram_idx).reshape(-1, self.embedding_dim, self.embedding_dim)
         context_features = torch.tensordot(context_word_features, position_matrix)
-        all_word = self.embeddings_word(torch.arange(self.vocab_size))
-        decoded = torch.mm(context_features,  all_word.T) + self.embedding_bias(torch.arange(self.vocab_size)).view(-1)
+        all_word = self.embeddings_word(all_vocab_idx)
+        decoded = torch.mm(context_features,  all_word.T) + self.embedding_bias(all_vocab_idx).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       
         return logits
 
