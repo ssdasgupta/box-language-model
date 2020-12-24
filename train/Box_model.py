@@ -122,7 +122,7 @@ class BoxModel(nn.Module):
         all_word.data = all_word.data.view(1, self.vocab_size, 2,self.embedding_dim)
 
         dec = all_word.intersection_log_soft_volume(context_word_boxes)
-        decoded = dec + self.embedding_bias(torch.arange(self.vocab_size)).view(-1)
+        decoded = dec + self.embedding_bias(all_vocab_idx).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       
         return logits
 
