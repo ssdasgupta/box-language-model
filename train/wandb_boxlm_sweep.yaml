@@ -1,0 +1,20 @@
+program: Box_model.py
+method: bayes
+metric:
+  name: train_ppl
+  goal: minimize
+
+parameters:
+  lr:
+    min: 0.0001
+    max: 1.0
+    distribution: log_uniform
+  batch_size:
+    values: [32, 64, 96, 128]
+  n_grams:
+    values: [4, 5, 6, 7]
+  embedding_doim:
+    values: [32, 64, 96, 128, 160]
+  
+
+

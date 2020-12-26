@@ -1,3 +1,4 @@
+import argparse
 import torchtext, random, torch
 
 import torch.nn as nn
@@ -8,15 +9,32 @@ from modules import BoxEmbedding
 
 import numpy as np
 from tqdm import tqdm
+import wandb
+
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
 device = 0 if use_cuda else -1
 
 TEXT = torchtext.data.Field()
-train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data", train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
+train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data",
+              train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
 TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
-train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test), batch_size=10, bptt_len=5, repeat=False)
+train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test),
+                             batch_size=10, bptt_len=5, repeat=False)
+
+
+parser = argparse.ArgumentParser(description='PyTorch Box Language Model')
+parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+                    help='batch size')
+parser.add_argument('--lr', type=float, default=20, help='initial learning rate')
+parser.add_argument('--n_gram',type=int, default=4, help='Number of previous words to consider')
+parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
+
+args = parser.parse_args()
+wandb.init(project="box-language-model",  reinit=True)
+wandb.config.update(args)
+# wandb.init(project="box-language-model",  reinit=True)
 
 
 class Trainer:
@@ -73,6 +91,7 @@ class Trainer:
             train_ppl = np.exp(np.mean(epoch_loss))
 #             val_ppl = self.validate(model)
             val_ppl = 0
+            wandb.log({'epoch': epoch, 'Train PPL': train_ppl})
 
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
@@ -127,7 +146,7 @@ class BoxModel(nn.Module):
         return logits
 
 
-model = BoxModel()
+model = BoxModel(embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
 if use_cuda:
     model.cuda()
 trainer = Trainer(train_iter = train_iter, val_iter = val_iter)

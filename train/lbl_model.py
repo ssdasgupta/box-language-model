@@ -1,9 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
+import argparse
 import torchtext, random, torch
 
 import torch.nn as nn
@@ -12,6 +7,7 @@ from torch.autograd import Variable
 
 import numpy as np
 from tqdm import tqdm
+import wandb
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
@@ -23,8 +19,17 @@ TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
 train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test), batch_size=100, bptt_len=32, repeat=False)
 
 
-# In[11]:
+parser = argparse.ArgumentParser(description='PyTorch log bilinear Language Model')
+parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+                    help='batch size')
+parser.add_argument('--lr', type=float, default=20, help='initial learning rate')
+parser.add_argument('--n_gram',type=int, default=4, help='Number of previous words to consider')
+parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
+args = parser.parse_args()
 
+wandb.init(project="box-language-model",  reinit=True)
+wandb.config.update(args)
+wandb.init(project="box-language-model",  reinit=True)
 
 class LBLModel(nn.Module):
     def __init__(self,
@@ -54,9 +59,6 @@ class LBLModel(nn.Module):
         decoded = torch.mm(context_features,  all_word.T) + self.embedding_bias(all_vocab_idx).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       
         return logits
-
-
-# In[12]:
 
 
 class Trainer:
@@ -113,9 +115,10 @@ class Trainer:
                 if count > 10: break
             model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
-#             val_ppl = self.validate(model)
-            val_ppl = 0
-
+            val_ppl = self.validate(model)
+            # val_ppl = 0
+            metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss)}
+            wandb.log(metric)
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
         print('Model trained.')
@@ -147,30 +150,9 @@ class Trainer:
 #         return out_words
 
 
-# In[13]:
-
 
 model = LBLModel()
 if use_cuda: 
     model.cuda()
 trainer = Trainer(train_iter = train_iter, val_iter = val_iter)
 trainer.train_model(model = model, num_epochs = 40)
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
