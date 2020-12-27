@@ -90,10 +90,9 @@ class Trainer:
 
             model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
-#             val_ppl = self.validate(model)
-            val_ppl = 0
-            wandb.log({'epoch': epoch, 'Train PPL': train_ppl})
-
+            val_ppl = self.validate(model)
+            metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss)}
+            wandb.log(metric)
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
         print('Model trained.')
