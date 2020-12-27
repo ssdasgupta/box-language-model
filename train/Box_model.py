@@ -16,14 +16,6 @@ global use_cuda
 use_cuda = torch.cuda.is_available()
 device = 0 if use_cuda else -1
 
-TEXT = torchtext.data.Field()
-train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data",
-              train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
-TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
-train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test),
-                             batch_size=10, bptt_len=5, repeat=False)
-
-
 parser = argparse.ArgumentParser(description='PyTorch Box Language Model')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
@@ -32,15 +24,25 @@ parser.add_argument('--n_gram',type=int, default=4, help='Number of previous wor
 parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
 
 args = parser.parse_args()
+
+TEXT = torchtext.data.Field()
+train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data",
+              train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
+TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
+train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test),
+                             batch_size=args.batch_size, bptt_len=args.n_gram+1, repeat=False)
+
+
 wandb.init(project="box-language-model",  reinit=True)
 wandb.config.update(args)
 # wandb.init(project="box-language-model",  reinit=True)
 
 
 class Trainer:
-    def __init__(self, train_iter, val_iter):
+    def __init__(self, train_iter, val_iter, n_gram):
         self.train_iter = train_iter
         self.val_iter = val_iter
+        self.n_gram = n_gram
         
     def string_to_batch(self, string):
         relevant_split = string.split() # last two words, ignore ___
@@ -54,7 +56,7 @@ class Trainer:
         return TEXT.vocab.stoi[word]
     
     def batch_to_input(self, batch):
-        ngrams = self.collect_batch_ngrams(batch)
+        ngrams = self.collect_batch_ngrams(batch, n=self.n_gram)
         x = Variable(torch.LongTensor([ngram[:-1] for ngram in ngrams]))
         y = Variable(torch.LongTensor([ngram[-1] for ngram in ngrams]))
         if use_cuda:
@@ -64,7 +66,7 @@ class Trainer:
     
     def collect_batch_ngrams(self, batch, n = 5):
         data = torch.flatten(batch.text.T)
-        return [tuple(data[idx:idx + n]) for idx in range(0, len(data) - n + 1)]
+        return [tuple(data[idx:idx + n + 1]) for idx in range(0, len(data) - n)]
     
     def train_model(self, model, num_epochs):
         parameters = filter(lambda p: p.requires_grad, model.parameters())
@@ -75,7 +77,7 @@ class Trainer:
             epoch_loss = []
 #             hidden = model.init_hidden()
             model.train()
-            count = 0
+
             for batch in tqdm(train_iter):
                 x, y = self.batch_to_input(batch)
                 if use_cuda: x, y = x.cuda(), y.cuda()
@@ -85,8 +87,7 @@ class Trainer:
                 loss.backward()
                 optimizer.step()
                 epoch_loss.append(loss.data.item())
-                count += 1
-                if count > 10: break
+
             model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
 #             val_ppl = self.validate(model)
@@ -149,5 +150,5 @@ class BoxModel(nn.Module):
 model = BoxModel(embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
 if use_cuda:
     model.cuda()
-trainer = Trainer(train_iter = train_iter, val_iter = val_iter)
+trainer = Trainer(train_iter = train_iter, val_iter = val_iter, n_gram=args.n_gram)
 trainer.train_model(model = model, num_epochs = 40)
