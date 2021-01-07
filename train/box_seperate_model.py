@@ -74,7 +74,7 @@ class Trainer:
         parameters = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.Adam(params = parameters, lr=1e-1)
         criterion = nn.NLLLoss()
-        
+        best_val_ppl = float('inf')
         for epoch in tqdm(range(num_epochs)):
             epoch_loss = []
 #             hidden = model.init_hidden()
@@ -93,7 +93,8 @@ class Trainer:
             model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
             val_ppl = self.validate(model)
-            metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss)}
+            best_val_ppl = min(val_ppl, best_val_ppl)
+            metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss), 'best_val_ppl': best_val_ppl}
             wandb.log(metric)
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     

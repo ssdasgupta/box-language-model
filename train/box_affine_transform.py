@@ -74,7 +74,7 @@ class Trainer:
         parameters = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.Adam(params = parameters, lr=1e-1)
         criterion = nn.NLLLoss()
-        
+        best_val_ppl = float('inf')
         for epoch in tqdm(range(num_epochs)):
             epoch_loss = []
 #             hidden = model.init_hidden()
@@ -93,7 +93,8 @@ class Trainer:
             model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
             val_ppl = self.validate(model)
-            metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss)}
+            best_val_ppl = min(val_ppl, best_val_ppl)
+            metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss), 'best_val_ppl': best_val_ppl}
             wandb.log(metric)
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
@@ -160,13 +161,13 @@ class BoxAffineTransform(nn.Module):
         context_word_boxes = self.embeddings_word(x)
         all_gram_idx = torch.arange(self.n_gram).cuda() if use_cuda else torch.arange(self.n_gram)
         all_vocab_idx = torch.arange(self.vocab_size).cuda() if use_cuda else torch.arange(self.vocab_size)
-        
+
         transformed_boxes = self.position_transformation(context_word_boxes, all_gram_idx)
         transformed_boxes.data = torch.mean(transformed_boxes.data, dim=1).view(-1,1,2,self.embedding_dim)    
         
         all_word = self.embeddings_word(all_vocab_idx * self.n_gram)
         all_word.data = all_word.data.view(1, self.vocab_size, 2, self.embedding_dim)
-        
+
         dec = all_word.intersection_log_soft_volume(context_word_boxes)
         decoded = dec + self.embedding_bias(all_vocab_idx).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       
