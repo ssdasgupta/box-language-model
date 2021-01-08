@@ -44,7 +44,7 @@ class LBLModel(nn.Module):
         self.n_gram = n_gram
         self.vocab_size = len(TEXT.vocab.itos)
         self.embedding_dim = embedding_dim
-        self.embeddings_word = nn.Embedding(self.vocab_size, self.embedding_dim)
+        self.embeddings_word = nn.Embedding(self.vocab_size * self.n_gram, self.embedding_dim)
         self.embedding_bias = nn.Embedding(self.vocab_size, 1)
         self.embedding_bias.weight.data = torch.zeros(self.vocab_size, 1)
 
@@ -55,9 +55,9 @@ class LBLModel(nn.Module):
         context_word_features = self.embeddings_word(x)
         all_gram_idx = torch.arange(self.n_gram).cuda() if use_cuda else torch.arange(self.n_gram)
         all_vocab_idx = torch.arange(self.vocab_size).cuda() if use_cuda else torch.arange(self.vocab_size)
-        position_matrix = self.C(all_gram_idx).reshape(-1, self.embedding_dim, self.embedding_dim)
-        context_features = torch.tensordot(context_word_features, position_matrix)
-        all_word = self.embeddings_word(all_vocab_idx)
+ 
+        context_features = torch.mean(context_word_features, dim=1)
+        all_word = self.embeddings_word(all_vocab_idx * self.n_gram)
         decoded = torch.mm(context_features,  all_word.T) + self.embedding_bias(all_vocab_idx).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       
         return logits
@@ -68,6 +68,7 @@ class Trainer:
         self.train_iter = train_iter
         self.val_iter = val_iter
         self.n_gram = n_gram
+        self.vocab_size = len(TEXT.vocab.itos)
         
     def string_to_batch(self, string):
         relevant_split = string.split() # last two words, ignore ___
@@ -82,14 +83,15 @@ class Trainer:
     
     def batch_to_input(self, batch):
         ngrams = self.collect_batch_ngrams(batch, n=self.n_gram)
-        x = Variable(torch.LongTensor([ngram[:-1] for ngram in ngrams]))
+        position_codes = torch.arange(self.n_gram + 1) * self.vocab_size
+        x = Variable(torch.LongTensor([ngram[:-1] for ngram in ngrams])) + position_codes[:-1]
         y = Variable(torch.LongTensor([ngram[-1] for ngram in ngrams]))
         if use_cuda:
             return x.cuda(), y.cuda()
         else:
             return x, y
     
-    def collect_batch_ngrams(self, batch, n = 31):
+    def collect_batch_ngrams(self, batch, n = 5):
         data = torch.flatten(batch.text.T)
         return [tuple(data[idx:idx + n + 1]) for idx in range(0, len(data) - n)]
     
