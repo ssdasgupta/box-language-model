@@ -95,7 +95,7 @@ class Trainer:
     
     def train_model(self, model, num_epochs):
         parameters = filter(lambda p: p.requires_grad, model.parameters())
-        optimizer = torch.optim.Adam(params = parameters, lr=1e-1)
+        optimizer = torch.optim.Adam(params = parameters, lr=args.lr)
         criterion = nn.NLLLoss()
         best_val_ppl = float('inf')
         for epoch in tqdm(range(num_epochs)):
