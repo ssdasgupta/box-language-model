@@ -58,8 +58,7 @@ class Trainer:
     
     def batch_to_input(self, batch):
         ngrams = self.collect_batch_ngrams(batch, n=self.n_gram)
-        position_codes = torch.arange(self.n_gram + 1) * self.vocab_size
-        x = Variable(torch.LongTensor([ngram[:-1] for ngram in ngrams])) + position_codes[:-1]
+        x = Variable(torch.LongTensor([ngram[:-1] for ngram in ngrams]))
         y = Variable(torch.LongTensor([ngram[-1] for ngram in ngrams]))
         if use_cuda:
             return x.cuda(), y.cuda()
@@ -124,11 +123,12 @@ class BoxAffineTransform(nn.Module):
                  batch_size = 10,
                  n_gram=4):
         super(BoxAffineTransform, self).__init__()
+
         self.batch_size = batch_size
         self.n_gram = n_gram
         self.vocab_size = len(TEXT.vocab.itos)
         self.embedding_dim = embedding_dim
-        self.embeddings_word = BoxEmbedding(self.vocab_size * self.n_gram, self.embedding_dim, box_type='DeltaBoxTensor')
+        self.embeddings_word = BoxEmbedding(self.vocab_size, self.embedding_dim, box_type='DeltaBoxTensor')
         self.embedding_bias = nn.Embedding(self.vocab_size, 1)
         self.embedding_bias.weight.data = torch.zeros(self.vocab_size, 1)
 
@@ -165,7 +165,7 @@ class BoxAffineTransform(nn.Module):
         transformed_boxes = self.position_transformation(context_word_boxes, all_gram_idx)
         transformed_boxes.data = torch.mean(transformed_boxes.data, dim=1).view(-1,1,2,self.embedding_dim)    
         
-        all_word = self.embeddings_word(all_vocab_idx * self.n_gram)
+        all_word = self.embeddings_word(all_vocab_idx)
         all_word.data = all_word.data.view(1, self.vocab_size, 2, self.embedding_dim)
 
         dec = all_word.intersection_log_soft_volume(context_word_boxes)

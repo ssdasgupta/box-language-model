@@ -43,6 +43,7 @@ class Trainer:
         self.train_iter = train_iter
         self.val_iter = val_iter
         self.n_gram = n_gram
+        self.vocab_size = len(TEXT.vocab.itos)
         
     def string_to_batch(self, string):
         relevant_split = string.split() # last two words, ignore ___
@@ -112,7 +113,7 @@ class Trainer:
         val_ppl = np.exp(np.mean(aggregate_loss))
         return val_ppl
 
-class BoxModel(nn.Module):
+class BoxAffineTransform(nn.Module):
     box_types = {
         'DeltaBoxTensor': DeltaBoxTensor,
     }
@@ -121,7 +122,8 @@ class BoxModel(nn.Module):
                  embedding_dim = 50,
                  batch_size = 10,
                  n_gram=4):
-        super(BoxModel, self).__init__()
+        super(BoxAffineTransform, self).__init__()
+
         self.batch_size = batch_size
         self.n_gram = n_gram
         self.vocab_size = len(TEXT.vocab.itos)
@@ -130,17 +132,42 @@ class BoxModel(nn.Module):
         self.embeddings_word_output = BoxEmbedding(self.vocab_size, self.embedding_dim, box_type='DeltaBoxTensor')
         self.embedding_bias = nn.Embedding(self.vocab_size, 1)
         self.embedding_bias.weight.data = torch.zeros(self.vocab_size, 1)
+
+        self.position_delta_weight_tail = nn.Embedding(num_embeddings=n_gram,
+                                                  embedding_dim=embedding_dim,
+                                                  sparse=False
+                                                )
+        self.position_delta_bias_tail = nn.Embedding(num_embeddings=n_gram,
+                                                embedding_dim=embedding_dim,
+                                                sparse= False)
+        self.position_min_weight_tail = nn.Embedding(num_embeddings=n_gram,
+                                                embedding_dim=embedding_dim,
+                                                sparse=False
+                                                )
+        self.position_min_bias_tail = nn.Embedding(num_embeddings=n_gram,
+                                              embedding_dim=embedding_dim,
+                                              sparse= False)
+
+    def position_transformation(self, box, position):
+        weight_delta = self.position_delta_weight_tail(position)
+        weight_min = self.position_min_weight_tail(position)
+        bias_delta = self.position_delta_bias_tail(position)
+        bias_min = self.position_min_bias_tail(position)
+        box.data[:,:,0,:] = box.data[:,:,0,:].clone() * weight_min + bias_min
+        box.data[:,:,1,:] = nn.functional.softplus(box.data[:,:,1,:].clone() * weight_delta + bias_delta)
+        return box
+
     
     def forward(self, x, train = True):
-        """ predict, return hidden state so it can be used to intialize the next hidden state """
         context_word_boxes = self.embeddings_word(x)
         all_gram_idx = torch.arange(self.n_gram).cuda() if use_cuda else torch.arange(self.n_gram)
         all_vocab_idx = torch.arange(self.vocab_size).cuda() if use_cuda else torch.arange(self.vocab_size)
 
-        context_word_boxes.data = torch.mean(context_word_boxes.data, dim=1).view(-1,1,2,self.embedding_dim)
+        transformed_boxes = self.position_transformation(context_word_boxes, all_gram_idx)
+        transformed_boxes.data = torch.mean(transformed_boxes.data, dim=1).view(-1,1,2,self.embedding_dim)    
         
         all_word = self.embeddings_word_output(all_vocab_idx)
-        all_word.data = all_word.data.view(1, self.vocab_size, 2,self.embedding_dim)
+        all_word.data = all_word.data.view(1, self.vocab_size, 2, self.embedding_dim)
 
         dec = all_word.intersection_log_soft_volume(context_word_boxes)
         decoded = dec + self.embedding_bias(all_vocab_idx).view(-1)
@@ -148,7 +175,7 @@ class BoxModel(nn.Module):
         return logits
 
 
-model = BoxModel(embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
+model = BoxAffineTransform(embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
 if use_cuda:
     model.cuda()
 trainer = Trainer(train_iter = train_iter, val_iter = val_iter, n_gram=args.n_gram)
