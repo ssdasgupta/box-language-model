@@ -64,7 +64,6 @@ class Trainer:
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
         print('Model trained.')
-        self.write_kaggle(model)
         print('Output saved.')
         
     def validate(self, model):
