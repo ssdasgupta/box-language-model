@@ -24,8 +24,8 @@ parser.add_argument('--lr', type=float, default=20, help='initial learning rate'
 parser.add_argument('--n_gram',type=int, default=4, help='Number of previous words to consider')
 parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
 parser.add_argument('--num_epochs', type=int, default=50, help='Number of training epoch')
-parser.add_argument('--sep_output', type=bool, default=False, help='Use seperate ouput variable')
-parser.add_argument('--diag_context', type=bool, default=False, help='Use seperate ouput variable')
+parser.add_argument('--sep_output', type=int, default=0, help='Use seperate ouput variable')
+parser.add_argument('--diag_context', type=int, default=0, help='Use seperate ouput variable')
 
 args = parser.parse_args()
 
