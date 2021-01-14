@@ -5,6 +5,7 @@ from torch.autograd import Variable
 
 import numpy as np
 from tqdm import tqdm
+import wandb
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
