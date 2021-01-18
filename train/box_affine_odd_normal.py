@@ -93,7 +93,7 @@ class BoxAffineTransform(nn.Module):
         dec = all_word.intersection_log_soft_volume(context_word_boxes)
         dec_inv = log1mexp(dec)
         odds = torch.div(dec , dec_inv) + self.embedding_bias(all_vocab_idx).view(-1)
-        logits = (odds.T * (1.0 /torch.sum(odds, dim=1))).T      
+        logits = torch.log((odds.T * (1.0 /torch.sum(odds, dim=1))).T )    
         return logits
 
 TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size)
