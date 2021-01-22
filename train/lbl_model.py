@@ -11,6 +11,8 @@ import wandb
 
 from trainer.Trainer import Trainer
 from trainer.data_utils import get_iter
+from train.BaseModule import BaseModule
+
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
@@ -32,12 +34,13 @@ args = parser.parse_args()
 wandb.init(project="box-language-model",  reinit=True)
 wandb.config.update(args)
 
-class LBLModel(nn.Module):
+class LBLModel(BaseModule):
     def __init__(self,
                  TEXT = None,
                  embedding_dim = 100,
                  batch_size = 10,
-                 n_gram=30):
+                 n_gram=30,
+                 ):
         super(LBLModel, self).__init__()
         self.batch_size = batch_size
         self.n_gram = n_gram
@@ -69,6 +72,7 @@ class LBLModel(nn.Module):
             all_word = self.embeddings_word_output(all_vocab_idx)
         else:
             all_word = self.embeddings_word(all_vocab_idx)
+
         decoded = torch.mm(context_features,  all_word.T) + self.embedding_bias(all_vocab_idx).view(-1)
         logits = F.log_softmax(decoded, dim = 1)       
         return logits
@@ -78,4 +82,4 @@ model = LBLModel(TEXT=TEXT, embedding_dim=args.embedding_dim, batch_size=args.ba
 if use_cuda: 
     model.cuda()
 trainer = Trainer(train_iter = train_iter, val_iter = val_iter, TEXT=TEXT, lr=args.lr, n_gram=args.n_gram)
-trainer.train_model(model = model, num_epochs = args.num_epochs)
+trainer.train_model(model = model, num_epochs = args.num_epochs, path=wandb.run.dir)

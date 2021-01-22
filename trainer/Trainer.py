@@ -5,6 +5,8 @@ from torch.autograd import Variable
 
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
+import wandb
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
@@ -34,7 +36,7 @@ class Trainer:
         for idx in range(0, len(data)-n+1):
             yield tuple(data[idx:idx+n])
     
-    def train_model(self, model, num_epochs):
+    def train_model(self, model, num_epochs=100, path='./'):
         parameters = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.Adam(params = parameters, lr=self.lr)
         criterion = nn.NLLLoss()
@@ -57,14 +59,37 @@ class Trainer:
             model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
             val_ppl = self.validate(model)
-            best_val_ppl = min(val_ppl, best_val_ppl)
-            # val_ppl = 0
+            if val_ppl < best_val_ppl:
+                best_val_ppl = val_ppl
+                model.save_checkpoint(Path(path)/'model.ckpt')
             metric = {'train_ppl': train_ppl, 'val_ppl': val_ppl, 'epoch_loss': np.mean(epoch_loss), 'best_val_ppl': best_val_ppl}
             wandb.log(metric)
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
         print('Model trained.')
         print('Output saved.')
+
+
+    def load_checkpoint(self, path):
+        self.load_state_dict(torch.load(os.path.join(path)))
+        self.eval()
+
+    def save_checkpoint(self, path):
+        torch.save(self.state_dict(), path)
+
+    def load_parameters(self, path):
+        f = open(path, "r")
+        parameters = json.loads(f.read())
+        f.close()
+        for i in parameters:
+            parameters[i] = torch.Tensor(parameters[i])
+        self.load_state_dict(parameters, strict = False)
+        self.eval()
+
+    def save_parameters(self, path):
+        f = open(path, "w")
+        f.write(json.dumps(self.get_parameters("list")))
+        f.close()
         
     def validate(self, model):
         criterion = nn.NLLLoss()
