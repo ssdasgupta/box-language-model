@@ -13,6 +13,7 @@ from trainer.Trainer import Trainer
 from trainer.data_utils import get_iter
 from box_wrapper import DeltaBoxTensor
 from modules import BoxEmbedding
+from train.BaseModule import BaseModule
 
 global use_cuda
 use_cuda = torch.cuda.is_available()
@@ -28,12 +29,12 @@ parser.add_argument('--embedding_dim', type=int, default=50, help='Word embeddin
 parser.add_argument('--num_epochs', type=int, default=50, help='Number of training epoch')
 args = parser.parse_args()
 
-wandb.init(project="Box-language-model",  reinit=True)
+wandb.init(project="box-language-model",  reinit=True)
 wandb.config.update(args)
 # wandb.init(project="box-language-model",  reinit=True)
 
 
-class BoxAffineTransform(nn.Module):
+class BoxAffineTransform(BaseModule):
     box_types = {
         'DeltaBoxTensor': DeltaBoxTensor,
     }
@@ -99,4 +100,4 @@ model = BoxAffineTransform(TEXT=TEXT, embedding_dim=args.embedding_dim, batch_si
 if use_cuda:
     model.cuda()
 trainer = Trainer(train_iter = train_iter, val_iter = val_iter, TEXT=TEXT, lr=args.lr, n_gram=args.n_gram)
-trainer.train_model(model = model, num_epochs = args.num_epochs)
+trainer.train_model(model = model, num_epochs = args.num_epochs, path=wandb.run.dir)

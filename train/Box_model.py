@@ -28,7 +28,7 @@ parser.add_argument('--embedding_dim', type=int, default=50, help='Word embeddin
 parser.add_argument('--num_epochs', type=int, default=50, help='Number of training epoch')
 args = parser.parse_args()
 
-wandb.init(project="Box-language-model",  reinit=True)
+wandb.init(project="box-language-model",  reinit=True)
 wandb.config.update(args)
 # wandb.init(project="box-language-model",  reinit=True)
 
