@@ -95,7 +95,7 @@ class BoxAffineTransform(BaseModule):
         return logits
 
 
-TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size)
+TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size, args.dataset)
 model = BoxAffineTransform(TEXT=TEXT, embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
 if use_cuda:
     model.cuda()

@@ -23,6 +23,7 @@ device = 0 if use_cuda else -1
 parser = argparse.ArgumentParser(description='PyTorch log bilinear Language Model')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
+parser.add_argument('--dataset', type=str, default='ptb', help='dataset name')
 parser.add_argument('--lr', type=float, default=20, help='initial learning rate')
 parser.add_argument('--n_gram',type=int, default=4, help='Number of previous words to consider')
 parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
@@ -93,10 +94,10 @@ class BoxAffineTransform(nn.Module):
         dec = all_word.intersection_log_soft_volume(context_word_boxes)
         dec_inv = log1mexp(dec)
         odds = torch.div(dec , dec_inv) + self.embedding_bias(all_vocab_idx).view(-1)
-        logits = torch.log((odds.T * (1.0 /torch.sum(odds, dim=1))).T )    
+        logits = torch.log((odds.T * (1.0 /torch.sum(odds, dim=1))).T)    
         return logits
 
-TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size)
+TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size, args.dataset)
 model = BoxAffineTransform(TEXT=TEXT, embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
 if use_cuda:
     model.cuda()

@@ -22,13 +22,13 @@ device = 0 if use_cuda else -1
 parser = argparse.ArgumentParser(description='PyTorch log bilinear Language Model')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
+parser.add_argument('--dataset', type=str, default='ptb', help='dataset name')
 parser.add_argument('--lr', type=float, default=20, help='initial learning rate')
 parser.add_argument('--n_gram',type=int, default=4, help='Number of previous words to consider')
 parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
 parser.add_argument('--num_epochs', type=int, default=50, help='Number of training epoch')
 parser.add_argument('--sep_output', type=int, default=0, help='Use seperate ouput variable')
 parser.add_argument('--diag_context', type=int, default=0, help='Use seperate ouput variable')
-
 args = parser.parse_args()
 
 wandb.init(project="box-language-model",  reinit=True)
@@ -77,7 +77,7 @@ class LBLModel(BaseModule):
         logits = F.log_softmax(decoded, dim = 1)       
         return logits
 
-TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size)
+TEXT, train_iter, val_iter, test_iter = get_iter(args.batch_size, args.dataset)
 model = LBLModel(TEXT=TEXT, embedding_dim=args.embedding_dim, batch_size=args.batch_size, n_gram=args.n_gram)
 if use_cuda: 
     model.cuda()
