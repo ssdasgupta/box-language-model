@@ -1,8 +1,8 @@
 import torchtext, random, torch
 
-def get_iter(batch_size):
+def get_iter(batch_size, dataset):
     TEXT = torchtext.data.Field()
-    train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data", 
+    train, val, test = torchtext.datasets.LanguageModelingDataset.splits(path="../data/" + dataset, 
          train="train.txt", validation="valid.txt", test="valid.txt", text_field=TEXT)
     TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
     train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits((train, val, test),
