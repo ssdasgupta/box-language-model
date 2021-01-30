@@ -23,6 +23,7 @@ device = 0 if use_cuda else -1
 parser = argparse.ArgumentParser(description='PyTorch log bilinear Language Model')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
+parser.add_argument('--dataset', type=str, default='ptb', help='dataset name')
 parser.add_argument('--lr', type=float, default=20, help='initial learning rate')
 parser.add_argument('--n_gram',type=int, default=4, help='Number of previous words to consider')
 parser.add_argument('--embedding_dim', type=int, default=50, help='Word embedding dimensions')
